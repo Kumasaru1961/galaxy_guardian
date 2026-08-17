@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ハロウィン・カボチャ・パニック</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ハロウィン・カボチャ・パニック (スマホ対応版)</title>
     <style>
         body {
             background-color: #12081c;
@@ -16,10 +16,11 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
+            touch-action: none; /* スマホでの意図せぬスクロールや拡大を防止 */
         }
         h1 {
             margin: 5px;
-            font-size: 24px;
+            font-size: 20px;
             letter-spacing: 2px;
             color: #ff7700;
             text-shadow: 0 0 10px rgba(255, 119, 0, 0.5);
@@ -28,14 +29,44 @@
             position: relative;
             box-shadow: 0 0 20px rgba(255, 119, 0, 0.3);
             border: 2px solid #552266;
+            max-width: 100%;
         }
         canvas {
             background-color: #080312;
             display: block;
+            width: 100%;
+            max-width: 480px;
+            height: auto;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 480px;
+            margin-top: 10px;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+        .btn {
+            background-color: rgba(85, 34, 102, 0.8);
+            color: #ffaa00;
+            border: 2px solid #ff7700;
+            font-size: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 15px 0;
+            width: 30%;
+            text-align: center;
+            border-radius: 8px;
+            user-select: none;
+            cursor: pointer;
+        }
+        .btn:active {
+            background-color: rgba(255, 119, 0, 0.6);
+            color: #fff;
         }
         .info {
-            margin-top: 10px;
-            font-size: 14px;
+            margin-top: 5px;
+            font-size: 12px;
             color: #cc99ff;
             text-align: center;
         }
@@ -45,10 +76,18 @@
 
     <h1>HALLOWEEN PUMPKIN PANIC</h1>
     <div id="game-container">
-        <canvas id="canvas" width="480" height="600"></canvas>
+        <canvas id="canvas" width="480" height="520" style="height: auto; max-height: 60vh;"></canvas>
     </div>
+
+    <!-- スマホ用タッチコントローラー -->
+    <div class="controls">
+        <div class="btn" id="btn-left">◀ </div>
+        <div class="btn" id="btn-shoot">▲ 発射</div>
+        <div class="btn" id="btn-right"> ▶</div>
+    </div>
+
     <div class="info">
-        移動: [←] [→] または [A] [D] / 発射: [↑] または [W] / リスタート: [R]
+        PC: [←][→]移動 [↑]発射 / スマホ: タッチボタンで操作
     </div>
 
 <script>
@@ -76,13 +115,12 @@ function playSound(type) {
     osc.connect(gainNode);
     gainNode.connect(audioCtx.destination);
 
-    // 怪しげなハロウィンBGM（マイナーコード風の音階）
     if (type === 'bgm1' || type === 'bgm2' || type === 'bgm3' || type === 'bgm4') {
         osc.type = 'sawtooth';
-        let freq = 130.81; // C3
-        if (type === 'bgm2') freq = 155.56; // Eb3
-        if (type === 'bgm3') freq = 146.83; // D3
-        if (type === 'bgm4') freq = 123.47; // B2
+        let freq = 130.81;
+        if (type === 'bgm2') freq = 155.56;
+        if (type === 'bgm3') freq = 146.83;
+        if (type === 'bgm4') freq = 123.47;
 
         osc.frequency.setValueAtTime(freq, now);
         osc.frequency.exponentialRampToValueAtTime(60, now + 0.15);
@@ -91,7 +129,6 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.15);
     } else if (type === 'shoot') {
-        // 魔法のビーム音
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, now);
         osc.frequency.exponentialRampToValueAtTime(220, now + 0.1);
@@ -100,7 +137,6 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.1);
     } else if (type === 'pumpkinKilled') {
-        // カボチャが割れるような音
         osc.type = 'square';
         osc.frequency.setValueAtTime(180, now);
         osc.frequency.exponentialRampToValueAtTime(40, now + 0.2);
@@ -109,7 +145,6 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.2);
     } else if (type === 'midBossKilled') {
-        // おばけ撃破時の陽気なファンファーレ
         osc.type = 'triangle';
         osc.frequency.setValueAtTime(523.25, now);
         osc.frequency.setValueAtTime(659.25, now + 0.1);
@@ -119,7 +154,6 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.35);
     } else if (type === 'bossKilled') {
-        // 魔王カボチャ撃破音
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(250, now);
         osc.frequency.exponentialRampToValueAtTime(30, now + 0.6);
@@ -128,7 +162,6 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.6);
     } else if (type === 'playerHit') {
-        // 被弾音
         osc.type = 'sawtooth';
         osc.frequency.setValueAtTime(150, now);
         osc.frequency.linearRampToValueAtTime(30, now + 0.35);
@@ -137,7 +170,6 @@ function playSound(type) {
         osc.start(now);
         osc.stop(now + 0.35);
     } else if (type === 'gameover') {
-        // 不気味なゲームオーバー音 ＋ ぽよよーん
         const notes = [196, 185, 174.61, 164.81]; 
         notes.forEach((freq, index) => {
             const subOsc = audioCtx.createOscillator();
@@ -187,7 +219,6 @@ let gameState = 'START';
 let level = 1;
 let gameOverTimer = 0;
 
-// プレイヤー（魔女のホウキ / 魔法の乗り物）
 const player = {
     x: canvas.width / 2 - 15,
     y: canvas.height - 50,
@@ -201,14 +232,13 @@ const bulletSpeed = 7;
 let enemyBullets = [];
 const enemyBulletSpeed = 3;
 
-// カボチャインベーダー配列
 let pumpkins = [];
 const pumpkinRows = 4;
 const pumpkinCols = 8;
 let pumpkinWidth = 34;
 let pumpkinHeight = 26;
 let pumpkinPadding = 12;
-let pumpkinOffsetTop = 60;
+let pumpkinOffsetTop = 50;
 let pumpkinOffsetLeft = 35;
 let pumpkinDirection = 1;
 let animFrame = 0;
@@ -218,7 +248,6 @@ let moveInterval = 30;
 let bgmStep = 0;
 let bgmTimer = 0;
 
-// 中間ボス（おばけ・ゴースト型）
 let midBoss = {
     x: -50,
     y: 40,
@@ -232,7 +261,6 @@ let midBoss = {
     timer: 0
 };
 
-// ラスボス（魔王パンプキン・キング）
 let boss = {
     x: canvas.width / 2 - 50,
     y: 35,
@@ -245,7 +273,6 @@ let boss = {
     direction: 1
 };
 
-// お墓風のシールド（墓石）
 let tombstones = [];
 
 function initTombstones() {
@@ -256,8 +283,8 @@ function initTombstones() {
 
     for (let i = 0; i < stoneCount; i++) {
         let startX = spacing + i * (stoneWidth + spacing);
-        let startY = canvas.height - 120;
-        for (let r = 0; r < 4; r++) {
+        let startY = canvas.height - 100;
+        for (let r = 0; r < 3; r++) {
             for (let c = 0; c < 10; c++) {
                 tombstones.push({
                     x: startX + c * 6,
@@ -319,39 +346,39 @@ function startGame() {
     gameState = 'PLAYING';
 }
 
+function triggerShoot() {
+    if (gameState === 'PLAYING') {
+        if (bullets.filter(b => b.isPlayer).length < 2) {
+            bullets.push({
+                x: player.x + player.width / 2 - 2,
+                y: player.y,
+                width: 4,
+                height: 12,
+                isPlayer: true
+            });
+            playSound('shoot');
+        }
+    } else if (gameState === 'GAMEOVER' && gameOverTimer > 60) {
+        resetGame();
+    } else if (gameState === 'START') {
+        resetGame();
+    }
+}
+
+// --- キーボード入力 ---
 const keys = {};
 window.addEventListener('keydown', (e) => {
     keys[e.code] = true;
-    
     if (e.code === 'ArrowUp' || e.code === 'KeyW') {
-        if (gameState === 'PLAYING') {
-            if (bullets.filter(b => b.isPlayer).length < 2) {
-                bullets.push({
-                    x: player.x + player.width / 2 - 2,
-                    y: player.y,
-                    width: 4,
-                    height: 12,
-                    isPlayer: true
-                });
-                playSound('shoot');
-            }
-        } else if (gameState === 'GAMEOVER' && gameOverTimer > 60) {
-            resetGame();
-        } else if (gameState === 'START') {
-            resetGame();
-        }
+        triggerShoot();
         e.preventDefault();
     }
-    
     if (e.code === 'Space') {
-        if (gameState !== 'PLAYING') {
-            if (gameState !== 'GAMEOVER' || gameOverTimer > 60) {
-                resetGame();
-            }
+        if (gameState !== 'PLAYING' && (gameState !== 'GAMEOVER' || gameOverTimer > 60)) {
+            resetGame();
         }
         e.preventDefault();
     }
-
     if (e.code === 'KeyR') {
         resetGame();
     }
@@ -360,6 +387,22 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => {
     keys[e.code] = false;
 });
+
+// --- タッチ操作対応 ---
+const touchState = { left: false, right: false };
+
+document.getElementById('btn-left').addEventListener('touchstart', (e) => { touchState.left = true; e.preventDefault(); });
+document.getElementById('btn-left').addEventListener('touchend', (e) => { touchState.left = false; e.preventDefault(); });
+document.getElementById('btn-left').addEventListener('mousedown', () => { touchState.left = true; });
+document.getElementById('btn-left').addEventListener('mouseup', () => { touchState.left = false; });
+
+document.getElementById('btn-right').addEventListener('touchstart', (e) => { touchState.right = true; e.preventDefault(); });
+document.getElementById('btn-right').addEventListener('touchend', (e) => { touchState.right = false; e.preventDefault(); });
+document.getElementById('btn-right').addEventListener('mousedown', () => { touchState.right = true; });
+document.getElementById('btn-right').addEventListener('mouseup', () => { touchState.right = false; });
+
+document.getElementById('btn-shoot').addEventListener('touchstart', (e) => { triggerShoot(); e.preventDefault(); });
+document.getElementById('btn-shoot').addEventListener('mousedown', () => { triggerShoot(); });
 
 function rectIntersect(r1, r2) {
     return r1.x < r2.x + r2.width &&
@@ -386,11 +429,12 @@ function update() {
         playSound('bgm' + bgmStep);
     }
 
-    if (keys['ArrowLeft'] || keys['KeyA']) {
+    // 移動処理（キーボード ＋ タッチボタン）
+    if (keys['ArrowLeft'] || keys['KeyA'] || touchState.left) {
         player.x -= player.speed;
         if (player.x < 0) player.x = 0;
     }
-    if (keys['ArrowRight'] || keys['KeyD']) {
+    if (keys['ArrowRight'] || keys['KeyD'] || touchState.right) {
         player.x += player.speed;
         if (player.x > canvas.width - player.width) player.x = canvas.width - player.width;
     }
@@ -404,7 +448,6 @@ function update() {
                 continue;
             }
 
-            // ラスボスとの当たり判定
             if (boss.active && rectIntersect(b, boss)) {
                 boss.hp--;
                 bullets.splice(i, 1);
@@ -419,7 +462,6 @@ function update() {
                 continue;
             }
 
-            // 中間ボスとの当たり判定 (1UP)
             if (midBoss.active && rectIntersect(b, midBoss)) {
                 midBoss.hp--;
                 bullets.splice(i, 1);
@@ -433,7 +475,6 @@ function update() {
                 continue;
             }
 
-            // 通常カボチャとの当たり判定
             let hit = false;
             for (let p of pumpkins) {
                 if (p.alive && rectIntersect(b, p)) {
@@ -454,7 +495,6 @@ function update() {
                 continue;
             }
 
-            // 墓石シールド
             let stoneHit = false;
             for (let s of tombstones) {
                 if (s.alive && rectIntersect(b, s)) {
@@ -580,74 +620,56 @@ function update() {
     }
 }
 
-// ラスボス（魔王パンプキン・キング）の描画
 function drawBoss() {
     if (!boss.active) return;
-    
-    // 本体（巨大カボチャ王）
     ctx.fillStyle = '#ff5500';
     ctx.fillRect(boss.x + 10, boss.y + 12, boss.width - 20, 26);
     ctx.fillStyle = '#ff8800';
     ctx.fillRect(boss.x + 20, boss.y + 6, boss.width - 40, 32);
-
-    // 王冠
     ctx.fillStyle = '#ffcc00';
     ctx.fillRect(boss.x + 35, boss.y, 30, 8);
     ctx.fillRect(boss.x + 40, boss.y - 6, 6, 6);
     ctx.fillRect(boss.x + 54, boss.y - 6, 6, 6);
-
-    // 不気味な目と口
     ctx.fillStyle = '#220011';
     ctx.fillRect(boss.x + 24, boss.y + 14, 12, 10);
     ctx.fillRect(boss.x + 64, boss.y + 14, 12, 10);
     ctx.fillRect(boss.x + 32, boss.y + 28, 36, 6);
-
-    // HPゲージ
     ctx.fillStyle = '#441122';
     ctx.fillRect(boss.x, boss.y - 12, boss.width, 5);
     ctx.fillStyle = '#ff3366';
     ctx.fillRect(boss.x, boss.y - 12, boss.width * (boss.hp / boss.maxHp), 5);
 }
 
-// 中間ボス（ゴーストおばけ）の描画
 function drawMidBoss() {
     if (!midBoss.active) return;
     ctx.fillStyle = '#eeccff';
     ctx.fillRect(midBoss.x + 12, midBoss.y + 4, midBoss.width - 24, 14);
     ctx.fillRect(midBoss.x + 6, midBoss.y + 10, midBoss.width - 12, 10);
-    // 目
     ctx.fillStyle = '#440066';
     ctx.fillRect(midBoss.x + 16, midBoss.y + 8, 4, 6);
     ctx.fillRect(midBoss.x + 32, midBoss.y + 8, 4, 6);
-    // HPゲージ
     ctx.fillStyle = '#441122';
     ctx.fillRect(midBoss.x, midBoss.y - 6, midBoss.width, 3);
     ctx.fillStyle = '#00ffcc';
     ctx.fillRect(midBoss.x, midBoss.y - 6, midBoss.width * (midBoss.hp / midBoss.maxHp), 3);
 }
 
-// カボチャインベーダーの描画（ジャック・オー・ランタン風）
 function drawPumpkin(p) {
     if (!p.alive) return;
-    
     if (p.type === 3) ctx.fillStyle = '#ff3300';
     else if (p.type === 2) ctx.fillStyle = '#ff6600';
     else ctx.fillStyle = '#ff9900';
 
-    // カボチャ本体
     if (animFrame === 0) {
         ctx.fillRect(p.x + 4, p.y + 4, p.width - 8, p.height - 4);
         ctx.fillRect(p.x, p.y + 8, p.width, p.height - 12);
-        // へた
         ctx.fillStyle = '#228822';
         ctx.fillRect(p.x + p.width / 2 - 3, p.y, 6, 6);
-        // 目と口（くり抜き）
         ctx.fillStyle = '#050208';
         ctx.fillRect(p.x + 8, p.y + 10, 5, 6);
         ctx.fillRect(p.x + p.width - 13, p.y + 10, 5, 6);
         ctx.fillRect(p.x + 10, p.y + 18, p.width - 20, 3);
     } else {
-        // アニメーション時の別ポーズ（ちょっと形が変わる）
         ctx.fillRect(p.x + 6, p.y + 4, p.width - 12, p.height - 4);
         ctx.fillRect(p.x + 2, p.y + 6, p.width - 4, p.height - 10);
         ctx.fillStyle = '#228822';
@@ -664,28 +686,27 @@ function draw() {
 
     if (gameState === 'START') {
         ctx.fillStyle = '#ff7700';
-        ctx.font = '22px "Courier New", monospace';
+        ctx.font = '20px "Courier New", monospace';
         ctx.textAlign = 'center';
         ctx.fillText('HALLOWEEN PUMPKIN PANIC', canvas.width / 2, canvas.height / 2 - 40);
         
         ctx.fillStyle = '#fff';
         ctx.font = '14px "Courier New", monospace';
-        ctx.fillText('PRESS [↑] OR [W] TO START', canvas.width / 2, canvas.height / 2 + 20);
+        ctx.fillText('TOUCH [▲ 発射] TO START', canvas.width / 2, canvas.height / 2 + 20);
         return;
     }
 
     ctx.fillStyle = '#fff';
-    ctx.font = '14px "Courier New", monospace';
+    ctx.font = '13px "Courier New", monospace';
     ctx.textAlign = 'left';
-    ctx.fillText(`SCORE: ${score}`, 20, 30);
-    ctx.fillText(`NIGHT: ${level}`, 200, 30);
-    ctx.fillText(`BROOMS: ${'🧹 '.repeat(lives)}`, canvas.width - 140, 30);
+    ctx.fillText(`SCORE: ${score}`, 15, 25);
+    ctx.fillText(`NIGHT: ${level}`, 180, 25);
+    ctx.fillText(`LIVES: ${'🧹'.repeat(lives)}`, canvas.width - 110, 25);
 
-    // 自機（魔女のホウキ / ナイトフライト機）の描画
     ctx.fillStyle = '#bb66ff';
     ctx.fillRect(player.x + player.width / 2 - 3, player.y, 6, player.height);
     ctx.fillStyle = '#ffcc00';
-    ctx.fillRect(player.x, player.y + 10, player.width, 8); // ほうきの柄・魔女のシート
+    ctx.fillRect(player.x, player.y + 10, player.width, 8);
 
     if (boss.active) {
         drawBoss();
@@ -694,13 +715,11 @@ function draw() {
         drawMidBoss();
     }
 
-    // お墓（シールド）の描画
     ctx.fillStyle = '#8888aa';
     tombstones.forEach(s => {
         if (s.alive) ctx.fillRect(s.x, s.y, s.width, s.height);
     });
 
-    // 弾の描画（魔法の弾 / カボチャの弾）
     bullets.forEach(b => {
         ctx.fillStyle = b.isPlayer ? '#ffff00' : '#ff3399';
         ctx.fillRect(b.x, b.y, b.width, b.height);
@@ -711,7 +730,7 @@ function draw() {
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         let scaleFactor = Math.min(1.0, gameOverTimer / 45);
-        let currentFontSize = Math.floor(32 * scaleFactor);
+        let currentFontSize = Math.floor(30 * scaleFactor);
 
         ctx.save();
         ctx.translate(canvas.width / 2, canvas.height / 2 - 20);
@@ -726,9 +745,9 @@ function draw() {
 
         if (gameOverTimer > 50) {
             ctx.fillStyle = '#fff';
-            ctx.font = '15px "Courier New", monospace';
+            ctx.font = '14px "Courier New", monospace';
             ctx.textAlign = 'center';
-            ctx.fillText('PRESS [↑] OR [W] TO RETRY', canvas.width / 2, canvas.height / 2 + 50);
+            ctx.fillText('TOUCH [▲ 発射] TO RETRY', canvas.width / 2, canvas.height / 2 + 50);
         }
     }
 }
